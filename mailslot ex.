@@ -1,0 +1,121 @@
+//Kod för en klient som sänder godt meddelanden.
+//Klienten i.e den som skickar
+
+
+#include <fcntl.h>      /*behövs för att använda alla o_kommandon i.e
+                        O_RDONLY := öppnar kön för att endast ta emot meddelanden
+                        O_WRONLY := - | | -                     skicka meddelanden
+                        O_CREAT  := skapar kön om den ej finns 
+                        */
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <mqueue.h> 
+#define msg_stop "END"      //ordet som  krävs för att stoppa input loopen
+#define QUEUE_NAME "/test_queue"
+#define max_size 1024
+#include <termios.h>
+#include <unistd.h>
+            //kod för klienten i.e den som skickar meddelanden.
+
+
+ 
+int main()
+{
+  
+    char userinput[max_size];       //variabel att lagra input i
+        
+    mqd_t mq;
+    mq = mq_open(QUEUE_NAME, O_WRONLY);
+
+printf("Send to sever (enter\"END\" to stop it):\n");
+
+while (strncmp(userinput, msg_stop, strlen(msg_stop)))          //jämför input med stop_msg
+{
+printf(":");
+        fflush(stdout);     
+    
+memset(userinput, 0, max_size);         //resetar userinput.
+fgets(userinput, max_size, stdin);      //tar input 
+mq_send(mq, userinput, max_size, 0);        //skickar
+
+}          //kontroll för att veta att loopen brytits.
+mq_close(mq);
+return 0;
+}       
+ 
+
+                    
+    
+
+                        
+                        
+
+
+
+
+
+
+//kod för servern, den som tar emot och printar.
+
+
+
+#include <fcntl.h>      /*behövs för att använda alla o_kommandon i.e
+                        O_RDONLY := öppnar kön för att endast ta emot meddelanden
+                        O_WRONLY := - | | -                     skicka meddelanden
+                        O_CREAT  := skapar kön om den ej finns 
+                        */
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <mqueue.h> 
+#include <errno.h>
+#define msg_stop "END"      //ordet som  krävs för att stoppa input loopen
+#define QUEUE_NAME "/test_queue"
+
+
+                    //COMPILE: gcc -o filnamn filnamn.c -lrt  
+int main()
+{
+    
+    mqd_t mq;
+    int max_size = 1024;
+    char input[max_size +1 ];
+    int must_stop = 0;
+
+    //attribut:
+ struct mq_attr attr;
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = 10;
+    attr.mq_msgsize = max_size;
+    attr.mq_curmsgs = 0;
+//skkapar kön
+mq = mq_open(QUEUE_NAME, O_CREAT | O_RDONLY, 0644, &attr);      
+while(must_stop == 0)
+{
+ssize_t bytes_read;
+//tar emot meddelanden.
+bytes_read = mq_receive(mq, input, max_size, NULL);
+input[bytes_read] ='\0';
+if(! strncmp(input, msg_stop, strlen(msg_stop)))
+{
+    must_stop = 1;
+}
+else
+{
+    printf("Recieved: %s\n", input);
+}
+
+}
+ return 0;
+
+
+
+
+}
+
+
